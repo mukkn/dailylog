@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>今日のアウトプット</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500&display=swap');
+
+- { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+–bg: #0f0f0f;
+–surface: #1a1a1a;
+–border: #2a2a2a;
+–text: #e8e4dc;
+–text-muted: #555;
+–red: #e05a5a;
+–green: #5ab87a;
+–yellow: #d4a64a;
+–btn-bg: #2a2a2a;
+–done-bg: #5ab87a;
+–done-hover: #4aa06a;
+–bottom-h: 52px;
+}
+
+html, body {
+height: 100%;
+background: var(–bg);
+color: var(–text);
+font-family: ‘Noto Sans JP’, sans-serif;
+overscroll-behavior: none;
+}
+
+/* ── 上部（スクロールで消えてOK） ── */
+.top-bar {
+padding: 16px 20px 8px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+}
+
+.date-label {
+font-size: 12px;
+color: var(–text-muted);
+letter-spacing: 0.05em;
+}
+
+.done-btn {
+background: var(–done-bg);
+color: #fff;
+border: none;
+border-radius: 20px;
+padding: 8px 20px;
+font-size: 14px;
+font-family: ‘Noto Sans JP’, sans-serif;
+font-weight: 500;
+cursor: pointer;
+}
+.done-btn:active { opacity: 0.8; }
+
+/* ── テキストエリア ── */
+textarea {
+display: block;
+width: 100%;
+background: transparent;
+border: none;
+outline: none;
+resize: none;
+color: var(–text);
+font-family: ‘Noto Sans JP’, sans-serif;
+font-size: 16px;
+line-height: 1.9;
+padding: 12px 20px calc(var(–bottom-h) + 24px);
+caret-color: var(–green);
+letter-spacing: 0.02em;
+-webkit-tap-highlight-color: transparent;
+min-height: calc(100vh - 60px);
+}
+
+textarea::placeholder {
+color: var(–text-muted);
+font-weight: 300;
+}
+
+/* ── 下部バー（fixed＋visualViewportで追従） ── */
+.bottom-bar {
+position: fixed;
+left: 0;
+right: 0;
+bottom: 0;
+height: var(–bottom-h);
+background: var(–surface);
+border-top: 1px solid var(–border);
+display: flex;
+align-items: center;
+justify-content: flex-end;
+padding: 0 20px;
+gap: 12px;
+z-index: 10;
+}
+
+.char-count {
+font-size: 13px;
+color: var(–text-muted);
+transition: color 0.3s;
+font-variant-numeric: tabular-nums;
+}
+.char-count.red    { color: var(–red); }
+.char-count.green  { color: var(–green); }
+.char-count.yellow { color: var(–yellow); }
+
+.ring-wrap {
+position: relative;
+width: 28px;
+height: 28px;
+flex-shrink: 0;
+}
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(–border); stroke-width: 3; }
+.ring-fg {
+fill: none;
+stroke-width: 3;
+stroke-linecap: round;
+transition: stroke-dashoffset 0.2s, stroke 0.3s;
+}
+
+/* ── モーダル ── */
+.modal-overlay {
+display: none;
+position: fixed;
+inset: 0;
+background: rgba(0,0,0,0.75);
+z-index: 100;
+align-items: flex-end;
+justify-content: center;
+padding: 0 0 40px;
+backdrop-filter: blur(4px);
+}
+.modal-overlay.active { display: flex; }
+
+.modal {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 20px;
+padding: 28px 24px 24px;
+width: calc(100% - 40px);
+max-width: 400px;
+animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+from { transform: translateY(30px); opacity: 0; }
+to   { transform: translateY(0); opacity: 1; }
+}
+
+.modal-title { font-size: 17px; font-weight: 500; margin-bottom: 6px; }
+.modal-desc  { font-size: 13px; color: var(–text-muted); margin-bottom: 24px; line-height: 1.6; }
+.modal-date-preview { font-size: 13px; color: var(–green); margin-top: 4px; font-weight: 500; }
+.modal-actions { display: flex; gap: 10px; }
+
+.btn {
+flex: 1; padding: 14px; border: none; border-radius: 12px;
+font-size: 15px; font-family: ‘Noto Sans JP’, sans-serif;
+font-weight: 500; cursor: pointer;
+}
+.btn:active { transform: scale(0.97); }
+.btn-cancel { background: var(–btn-bg); color: var(–text-muted); }
+.btn-yes    { background: var(–done-bg); color: #fff; }
+
+/* ── トースト ── */
+.toast {
+display: none; position: fixed; left: 50%;
+transform: translateX(-50%) translateY(10px);
+background: var(–surface); border: 1px solid var(–border);
+color: var(–text); font-size: 13px; padding: 10px 20px;
+border-radius: 20px; white-space: nowrap; z-index: 200;
+opacity: 0; transition: opacity 0.3s, transform 0.3s;
+}
+.toast.show { display: block; opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+
+</head>
+<body>
+
+  <div class="top-bar">
+    <div class="date-label" id="dateLabel">読み込み中...</div>
+    <button class="done-btn" onclick="openModal()">完了</button>
+  </div>
+
+  <textarea id="editor" placeholder="今日のアウトプットをここに書いてください…"></textarea>
+
+  <div class="bottom-bar" id="bottomBar">
+    <span class="char-count" id="charCount">0 / 300</span>
+    <div class="ring-wrap">
+      <svg width="28" height="28" viewBox="0 0 28 28">
+        <circle class="ring-bg" cx="14" cy="14" r="11"/>
+        <circle class="ring-fg" id="ringFg" cx="14" cy="14" r="11"
+          stroke-dasharray="69.1" stroke-dashoffset="69.1" stroke="var(--red)"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-title">完了しますか？</div>
+      <div class="modal-desc">
+        クリップボードにコピーして、テキストを消去します。
+        <div class="modal-date-preview" id="datePreview"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-yes" onclick="confirmDone()">はい</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">📋 コピーしました</div>
+
+<script>
+  const editor      = document.getElementById('editor');
+  const charCount   = document.getElementById('charCount');
+  const dateLabel   = document.getElementById('dateLabel');
+  const datePreview = document.getElementById('datePreview');
+  const toast       = document.getElementById('toast');
+  const modal       = document.getElementById('modalOverlay');
+  const ringFg      = document.getElementById('ringFg');
+  const bottomBar   = document.getElementById('bottomBar');
+
+  const DAYS          = ['日','月','火','水','木','金','土'];
+  const CIRCUMFERENCE = 69.1;
+
+  // ── visualViewport でキーボード追従 ──
+  function adjustBottomBar() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    // キーボードで押し上げられた分だけ bottom をずらす
+    const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+    bottomBar.style.bottom = Math.max(keyboardHeight, 0) + 'px';
+    // トーストも同じ高さに追従
+    toast.style.bottom = (Math.max(keyboardHeight, 0) + 18) + 'px';
+  }
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', adjustBottomBar);
+    window.visualViewport.addEventListener('scroll', adjustBottomBar);
+  }
+
+  // ── 日付 ──
+  function getOutputDate() {
+    const now = new Date();
+    if (now.getHours() < 6) now.setDate(now.getDate() - 1);
+    const y   = now.getFullYear();
+    const m   = String(now.getMonth() + 1).padStart(2, '0');
+    const d   = String(now.getDate()).padStart(2, '0');
+    const day = DAYS[now.getDay()];
+    return `◼︎${y}.${m}.${d}(${day})`;
+  }
+
+  function updateDateLabel() {
+    dateLabel.textContent = getOutputDate().replace('◼︎', '');
+  }
+
+  // ── 文字数 ──
+  function updateCounter() {
+    const len = editor.value.length;
+    charCount.classList.remove('red', 'green', 'yellow');
+
+    let progress;
+    if (len < 300) {
+      charCount.textContent = `${len} / 300`;
+      charCount.classList.add('red');
+      ringFg.style.stroke = 'var(--red)';
+      progress = len / 300;
+    } else if (len <= 800) {
+      charCount.textContent = `${len} / 800`;
+      charCount.classList.add('green');
+      ringFg.style.stroke = 'var(--green)';
+      progress = (len - 300) / 500;
+    } else {
+      charCount.textContent = `${len}`;
+      charCount.classList.add('yellow');
+      ringFg.style.stroke = 'var(--yellow)';
+      progress = 1;
+    }
+    ringFg.style.strokeDashoffset = CIRCUMFERENCE * (1 - Math.min(progress, 1));
+  }
+
+  // ── モーダル ──
+  function openModal() {
+    datePreview.textContent = getOutputDate();
+    modal.classList.add('active');
+  }
+  function closeModal() {
+    modal.classList.remove('active');
+  }
+
+  async function confirmDone() {
+    closeModal();
+    const text = `${getOutputDate()}\n${editor.value}`;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+    }
+    editor.value = '';
+    updateCounter();
+    showToast();
+  }
+
+  function showToast() {
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  function scheduleNextReset() {
+    const now = new Date(), next = new Date(now);
+    next.setHours(6, 0, 0, 0);
+    if (now >= next) next.setDate(next.getDate() + 1);
+    setTimeout(() => { updateDateLabel(); scheduleNextReset(); }, next - now);
+  }
+
+  editor.addEventListener('input', updateCounter);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+  adjustBottomBar();
+  updateDateLabel();
+  updateCounter();
+  scheduleNextReset();
+</script>
+
+</body>
+</html>
